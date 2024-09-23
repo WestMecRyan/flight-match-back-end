@@ -17,9 +17,21 @@ const dataPath = path.join(__dirname, 'data');
 // Middleware setup
 // CORS Configuration
 const corsOptions = {
-    origin: process.env.FRONTEND_URL || 'http://localhost:5173', // vite's default port
+    origin: function (origin, callback) {
+      const allowedOrigins = [
+        process.env.FRONTEND_URL,
+        'https://<github space url>',
+        'http://localhost:5173'
+      ];
+      if (!origin || allowedOrigins.some(allowedOrigin => origin.startsWith(allowedOrigin))) {
+        callback(null, true);
+      } else {
+        callback(new Error('Not allowed by CORS'));
+      }
+    },
+    credentials: true,
     optionsSuccessStatus: 200
-};
+  };
 app.use(cors(
     corsOptions
 )); // Invoke cors as a function and pass the options object
@@ -34,8 +46,20 @@ app.get('/', (req, res) => {
 
 app.use(express.static(publicPath)); // Serve static files from client directory
 
-// Start the server
-const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => {
-    console.log(`Server is running on http://localhost:${PORT}`);
-});
+// Function to start server
+const startServer = (port) => {
+    app.listen(port, () => {
+      console.log(`Server running on http://localhost:${port}`);
+    }).on('error', (err) => {
+      if (err.code === 'EADDRINUSE') {
+        console.log(`Port ${port} is busy, trying ${port + 1}...`);
+        startServer(port + 1);
+      } else {
+        console.error(err);
+      }
+    });
+  };
+  
+  // Start the server
+  const PORT = process.env.PORT || 3000;
+  startServer(PORT);
